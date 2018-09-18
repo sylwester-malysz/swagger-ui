@@ -1,35 +1,36 @@
-import React from "react"
-import PropTypes from "prop-types"
-import ImPropTypes from "react-immutable-proptypes"
-import cx from "classnames"
-import { fromJS, Seq, Iterable, List, Map } from "immutable"
-import { getSampleSchema, fromJSOrdered, stringify } from "core/utils"
+import React from 'react'
+import PropTypes from 'prop-types'
+import ImPropTypes from 'react-immutable-proptypes'
+import cx from 'classnames'
+import { fromJS, Seq, Iterable, List, Map } from 'immutable'
+import { getSampleSchema, fromJSOrdered, stringify } from 'core/utils'
 
-const getExampleComponent = ( sampleResponse, examples, HighlightCode ) => {
-  if ( examples && examples.size ) {
-    return examples.entrySeq().map( ([ key, example ]) => {
+const getExampleComponent = (sampleResponse, examples, HighlightCode) => {
+  if (examples && examples.size) {
+    return examples.entrySeq().map(([key, example]) => {
       let exampleValue = stringify(example)
 
-      return (<div key={ key }>
-        <h5>{ key }</h5>
-        <HighlightCode className="example" value={ exampleValue } />
+      return (<div key={key}>
+        <h5>{key}</h5>
+        <HighlightCode className="example" value={exampleValue}/>
       </div>)
     }).toArray()
   }
 
-  if ( sampleResponse ) { return <div>
-      <HighlightCode className="example" value={ sampleResponse } />
+  if (sampleResponse) {
+    return <div>
+      <HighlightCode className="example" value={sampleResponse}/>
     </div>
   }
   return null
 }
 
 export default class Response extends React.Component {
-  constructor(props, context) {
+  constructor (props, context) {
     super(props, context)
 
     this.state = {
-      responseContentType: ""
+      responseContentType: ''
     }
   }
 
@@ -50,18 +51,18 @@ export default class Response extends React.Component {
   static defaultProps = {
     response: fromJS({}),
     onContentTypeChange: () => {}
-  };
+  }
 
   _onContentTypeChange = (value) => {
-    const { onContentTypeChange, controlsAcceptHeader } = this.props
-    this.setState({ responseContentType: value })
+    const {onContentTypeChange, controlsAcceptHeader} = this.props
+    this.setState({responseContentType: value})
     onContentTypeChange({
       value: value,
       controlsAcceptHeader
     })
   }
 
-  render() {
+  render () {
     let {
       code,
       response,
@@ -75,106 +76,112 @@ export default class Response extends React.Component {
       controlsAcceptHeader
     } = this.props
 
-    let { inferSchema } = fn
-    let { isOAS3 } = specSelectors
+    let {inferSchema} = fn
+    let {isOAS3} = specSelectors
 
-    let headers = response.get("headers")
-    let examples = response.get("examples")
-    let links = response.get("links")
-    const Headers = getComponent("headers")
-    const HighlightCode = getComponent("highlightCode")
-    const ModelExample = getComponent("modelExample")
-    const Markdown = getComponent( "Markdown" )
-    const OperationLink = getComponent("operationLink")
-    const ContentType = getComponent("contentType")
+    let headers = response.get('headers')
+    let examples = response.get('examples')
+    let links = response.get('links')
+    const Headers = getComponent('headers')
+    const HighlightCode = getComponent('highlightCode')
+    const ModelExample = getComponent('modelExample')
+    const Markdown = getComponent('Markdown')
+    const OperationLink = getComponent('operationLink')
+    const ContentType = getComponent('contentType')
 
     var sampleResponse
-    var sampleSchema
+    var sampleSchemas = []
     var schema, specPathWithPossibleSchema
 
     const activeContentType = this.state.responseContentType || contentType
 
-    if(isOAS3()) {
-      const mediaType = response.getIn(["content", activeContentType], Map({}))
-      const oas3SchemaForContentType = mediaType.get("schema", Map({}))
+    if (isOAS3()) {
+      const mediaType = response.getIn(['content', activeContentType], Map({}))
+      const oas3SchemaForContentType = mediaType.get('schema', Map({}))
 
-      if(mediaType.get("example") !== undefined) {
-        sampleSchema = stringify(mediaType.get("example"))
+      if (mediaType.get('example') !== undefined) {
+        sampleSchemas[0] = stringify(mediaType.get('example'))
       } else {
-        sampleSchema = getSampleSchema(oas3SchemaForContentType.toJS(), this.state.responseContentType, {
-          includeReadOnly: true
-        })
+        if (oas3SchemaForContentType.toJS().oneOf) {
+          sampleSchemas = oas3SchemaForContentType.toJS().oneOf.map(jsSchema => getSampleSchema(jsSchema, this.state.responseContentType, {
+            includeReadOnly: true
+          }))
+        } else {
+          sampleSchemas[0] = getSampleSchema(oas3SchemaForContentType.toJS(), this.state.responseContentType, {
+            includeReadOnly: true
+          })
+        }
       }
-      sampleResponse = oas3SchemaForContentType ? sampleSchema : null
+      sampleResponse = oas3SchemaForContentType ? sampleSchemas[0] : null
       schema = oas3SchemaForContentType ? inferSchema(oas3SchemaForContentType.toJS()) : null
-      specPathWithPossibleSchema = oas3SchemaForContentType ? List(["content", this.state.responseContentType, "schema"]) : specPath
+      specPathWithPossibleSchema = oas3SchemaForContentType ? List(['content', this.state.responseContentType, 'schema']) : specPath
     } else {
       schema = inferSchema(response.toJS()) // TODO: don't convert back and forth. Lets just stick with immutable for inferSchema
-      specPathWithPossibleSchema = response.has("schema") ? specPath.push("schema") : specPath
+      specPathWithPossibleSchema = response.has('schema') ? specPath.push('schema') : specPath
       sampleResponse = schema ? getSampleSchema(schema, activeContentType, {
         includeReadOnly: true,
         includeWriteOnly: true // writeOnly has no filtering effect in swagger 2.0
-       }) : null
+      }) : null
     }
 
-    if(examples) {
+    if (examples) {
       examples = examples.map(example => {
         // Remove unwanted properties from examples
-        return example.set ? example.set("$$ref", undefined) : example
+        return example.set ? example.set('$$ref', undefined) : example
       })
     }
 
-    let example = getExampleComponent( sampleResponse, examples, HighlightCode )
+    let example = getExampleComponent(sampleResponse, examples, HighlightCode)
 
     return (
-      <tr className={ "response " + ( className || "") } data-code={code}>
+      <tr className={'response ' + (className || '')} data-code={code}>
         <td className="col response-col_status">
-          { code }
+          {code}
         </td>
         <td className="col response-col_description">
 
           <div className="response-col_description__inner">
-            <Markdown source={ response.get( "description" ) } />
+            <Markdown source={response.get('description')}/>
           </div>
 
-          { isOAS3 ?
-            <div className={cx("response-content-type", {
-              "controls-accept-header": controlsAcceptHeader
+          {isOAS3 ?
+            <div className={cx('response-content-type', {
+              'controls-accept-header': controlsAcceptHeader
             })}>
               <ContentType
-                  value={this.state.responseContentType}
-                  contentTypes={ response.get("content") ? response.get("content").keySeq() : Seq() }
-                  onChange={this._onContentTypeChange}
-                  />
-                { controlsAcceptHeader ? <small>Controls <code>Accept</code> header.</small> : null }
+                value={this.state.responseContentType}
+                contentTypes={response.get('content') ? response.get('content').keySeq() : Seq()}
+                onChange={this._onContentTypeChange}
+              />
+              {controlsAcceptHeader ? <small>Controls <code>Accept</code> header.</small> : null}
             </div>
-             : null }
+            : null}
 
-          { example ? (
+          {example ? (
             <ModelExample
               specPath={specPathWithPossibleSchema}
-              getComponent={ getComponent }
-              getConfigs={ getConfigs }
-              specSelectors={ specSelectors }
-              schema={ fromJSOrdered(schema) }
-              example={ example }/>
+              getComponent={getComponent}
+              getConfigs={getConfigs}
+              specSelectors={specSelectors}
+              schema={fromJSOrdered(schema)}
+              example={example}/>
           ) : null}
 
-          { headers ? (
+          {headers ? (
             <Headers
-              headers={ headers }
-              getComponent={ getComponent }
+              headers={headers}
+              getComponent={getComponent}
             />
           ) : null}
 
 
         </td>
         {specSelectors.isOAS3() ? <td className="col response-col_links">
-          { links ?
+          {links ?
             links.toSeq().map((link, key) => {
-              return <OperationLink key={key} name={key} link={ link } getComponent={getComponent}/>
+              return <OperationLink key={key} name={key} link={link} getComponent={getComponent}/>
             })
-          : <i>No links</i>}
+            : <i>No links</i>}
         </td> : null}
       </tr>
     )
